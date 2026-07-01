@@ -1,0 +1,24 @@
+{
+  "name": "global-biblio-base",
+  "version": "3.6.0",
+  "description": "全球12亿文献知识库 — 8000万篇可下载中文期刊 + 12亿全球文献元数据。三级检索策略、全文下载、引文追溯。首次使用自动注册（免费100次/月）。",
+  "author": {
+    "name": "J-levee",
+    "url": "https://github.com/J-levee"
+  },
+  "repository": "https://github.com/J-levee/global-biblio-base",
+  "license": "MIT",
+  "keywords": [
+    "literature-search",
+    "academic",
+    "paper-search",
+    "文献检索",
+    "论文搜索",
+    "学术",
+    "research",
+    "citation"
+  ],
+  "skills": [
+    "./SKILL.md"
+  ]
+}
