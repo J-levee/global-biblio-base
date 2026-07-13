@@ -2,7 +2,7 @@
 slug: global-biblio-base
 name: global-biblio-base
 displayName: 全球12亿文献知识库（8千万中文期刊可下载）
-version: 3.7
+version: 3.6
 description: |
   全球12亿文献知识库（8千万中文期刊可下载）——覆盖8000万篇授权中文期刊全文+12.28亿条全球文献元数据（含期刊7.19亿、专利2.15亿、会议论文7155万、学位论文2473万、标准268万等）。
   内置三级检索策略（宽检索高查全/窄检索高查准/平衡策略），支持关键词检索、文献详情查看、全文下载（中文直接下载+外文十级渠道自动探测+OA免费下载）、迭代优化检索、引文追溯、分类号检索、结果质量评估。
@@ -794,70 +794,21 @@ Body: {
 - 下载结果以标记形式追加到结果列表中，并在末尾输出「全文获取报告」汇总表
 - **未触发下载时**：仅展示元数据，不执行任何下载操作
 
-### 关键词智能扩展 v2 / Smart Keyword Expansion v2
+### 关键词智能扩展 / Smart Keyword Expansion
 
-> ⚠️ **核心原则**：SmartLib API 后端分词器（类似 IK Analyzer / mmseg4j）对中文复合词的索引已较完善。**召回不足的首要原因不是分词颗粒度问题，而是缩写/别名缺失、跨语言鸿沟和字段策略不当。**
+每次检索前，先对用户提供的核心关键词进行中英文同义词扩展，以显著提升召回率。
 
-每次检索前，按以下 4 层策略扩展关键词：
+**扩展维度 / Expansion Dimensions:**
 
-**第1层：缩写/别名扩展（优先级最高，实测 +122% 召回）**
+| 维度 | 说明 | 示例 |
+|------|------|------|
+| 中文同义词 | 学术语境下的等价表述 | "大语言模型" → "大模型" "LLM" |
+| 英文同义词 | 英文学术常用表述 | "deep learning" → "deep neural network" |
+| 中英互译 | 中英文之间的对照词 | "知识图谱" ↔ "knowledge graph" |
+| 缩写/全称 | 学术缩写及其展开 | "NLP" → "natural language processing" |
+| 上下位词 | 更泛化或更具体的表述 | "深度学习" → "机器学习"（上位） |
 
-内置高频学术术语映射表（无需联网，即时可用）：
-
-| 用户常用词 | 必须扩展的别名/缩写 | 扩展后召回提升 |
-|-----------|-------------------|---------------|
-| 大语言模型 | LLM, 大模型, large language model | +122% |
-| 人工智能 | AI, artificial intelligence | +18% |
-| 自然语言处理 | NLP, natural language processing | — |
-| 深度学习 | deep learning, DNN, 深度神经网络 | — |
-| 机器学习 | machine learning, ML | +22% |
-| 计算机视觉 | CV, computer vision, 机器视觉 | — |
-| 知识图谱 | knowledge graph, KG | — |
-| 推荐系统 | recommender system, 个性化推荐 | — |
-| 强化学习 | reinforcement learning, RL | — |
-| 联邦学习 | federated learning, FL | — |
-| 区块链 | blockchain, 分布式账本 | — |
-| 物联网 | IoT, Internet of Things | — |
-| 数字孪生 | digital twin | — |
-| 元宇宙 | metaverse | — |
-| 碳中和 | carbon neutrality, 碳达峰 | — |
-| 文献检索 | 信息检索, information retrieval, 文献搜索 | — |
-| 分词 | 中文分词, word segmentation, tokenization, 切词 | — |
-| BERT | bidirectional encoder representations | — |
-| GPT | generative pre-trained transformer | — |
-| CNN | convolutional neural network, 卷积神经网络 | — |
-| RNN | recurrent neural network, 循环神经网络 | — |
-| GAN | generative adversarial network, 生成对抗网络 | — |
-
-> **规则**：只要用户关键词命中上表左列，必须自动添加右列的扩展词。**AI 还应自行推理**——遇到表外术语时，联网搜索其标准缩写和英文对应词（如"Swin Transformer" → "Swin Transformer, Swin-T"）。
-
-**第2层：中英互译扩展**
-
-- 中文关键词 → 必须补英文对应词（通过联网搜索确认学术通用译名）
-- 英文关键词 → 必须补中文对应词
-- 示例：`知识图谱` → 扩展 `knowledge graph`；`segmentation` → 扩展 `分割, 语义分割`
-
-**第3层：上下位词扩展（按需，联网搜索）**
-
-- 结果 < 10 条时执行：用上位词扩大范围，或用下位词增加相关结果
-- 示例：`深度学习` 结果少 → 上位词 `机器学习`；`自然语言处理` 结果少 → 下位词 `文本分类, 命名实体识别`
-
-**第4层：同义词/近义词扩展（联网搜索）**
-
-- 通过联网查询学术语境下的等价表述
-- 示例：`文献检索` → 补充 `文献发现, 文献获取, 资源发现`
-
-**检索表达式构建规则：**
-
-1. 同义词组内用 `OR` 连接，不同概念组间用 `AND` 连接
-2. 每组扩展词控制在 3-8 个，**缩写词优先**（收益最大）
-3. **重要**：中文和英文扩展词必须在同一个 OR 组内，而非分开
-   - ✅ `(K=大语言模型 OR K=大模型 OR K=LLM OR K=large language model)`
-   - ❌ `(K=大语言模型 OR K=大模型) AND (K=LLM OR K=large language model)`
-4. 默认字段使用 `K=`（关键词字段，精度和召回最均衡）
-5. **中文复合词不拆解**（API 后端分词已处理。实测：拆解为单字/n-gram 对召回增益 <15% 但噪声激增）
-   - ✅ `K=自然语言处理`
-   - ❌ `K=自然 AND K=语言 AND K=处理`（噪声大，不推荐）
+**检索表达式构建规则：** 同义词组内用 `OR` 连接，不同概念组间用 `AND` 连接。扩展词数量控制在每概念组 3-8 个。
 
 ### 结果智能排序 / Smart Result Ranking
 
@@ -888,18 +839,14 @@ Body: {
 
 ### 自然语言转检索表达式示例 / NL-to-Query Examples
 
-> **字段默认使用 `K=`（关键词），而非 `U=`（全字段）。`K=` 精度高、噪声少，是学术检索的标准字段。**
-
 | 用户需求 | 扩展后的 Rule | FilterRule | 接口 |
 |---------|------|-----------|------|
-| 找关于深度学习的论文 | `(K=深度学习 OR K=deep learning OR K=DNN OR K=深度神经网络)` | - | 接口1+4 |
-| 清华大学发表的人工智能相关论文 | `(K=人工智能 OR K=AI OR K=artificial intelligence) AND O=清华大学` | `TY=3` | 接口1 |
-| 2024年中文期刊上关于大模型的文章 | `(K=大语言模型 OR K=大模型 OR K=LLM OR K=large language model)` | `TY=3 AND Y=2024 AND LA=ZH` | 接口1 |
-| Nature 期刊上的量子计算论文 | `(K=quantum computing OR K=量子计算) AND P=Nature` | - | 接口4 |
+| 找关于深度学习的论文 | `(U=深度学习 OR U=深度神经网络 OR U=deep learning OR U=DNN)` | - | 接口1+4 |
+| 清华大学发表的人工智能相关论文 | `(K=人工智能 OR K=AI) AND O=清华大学` | `TY=3` | 接口1 |
+| 2024年中文期刊上关于大模型的文章 | `(K=大语言模型 OR K=大模型 OR K=LLM)` | `TY=3 AND Y=2024 AND LA=ZH` | 接口1 |
+| Nature 期刊上的量子计算论文 | `(K=quantum computing) AND P=Nature` | - | 接口4 |
 | 查找计算机领域的专利 | `(K=计算机 OR K=computer)` | `TY=7` | 接口4 |
-| 2023-2025年的深度学习综述 | `(T=深度学习 OR T=deep learning) AND (T=综述 OR T=review OR T=survey)` | `Y=2023 OR Y=2024 OR Y=2025` | 接口1+4 |
-| 找关于知识图谱的论文 | `(K=知识图谱 OR K=knowledge graph OR K=KG)` | - | 接口1+4 |
-| NLP领域最新研究 | `(K=NLP OR K=自然语言处理 OR K=natural language processing)` | `Y=2024 OR Y=2025` | 接口1+4 |
+| 2023-2025年的深度学习综述 | `(T=深度学习 OR T=deep learning) AND (T=综述 OR T=review)` | `Y=2023 OR Y=2024 OR Y=2025` | 接口1+4 |
 
 ### 高级检索技巧 / Advanced Search Techniques
 
@@ -919,38 +866,14 @@ Body: {
 
 #### 字段选择策略矩阵 / Field Selection Matrix
 
-> **默认使用 `K=`（关键词字段）**。这是学术检索的标准做法——知网的"主题"检索、维普的人工标引关键词、WoS 的 Topic Search 均以关键词/主题词为核心检索入口。
-
 | 字段 | 精度 | 覆盖 | 最佳场景 |
 |------|------|------|------|
-| `K=` 关键词 | 中 | 高 | **常规检索（默认）** — 对标知网"主题"检索 |
-| `T=` 题名 | 最高 | 低 | 精准匹配、引用确认 — 对标 WoS "Title" 检索 |
-| `U=` 全部字段 | 低 | 最高 | 查全兜底（仅当 K= 和 T= 结果 < 10 条时使用） |
+| `U=` 全部字段 | 低 | 最高 | 宽泛探索 |
+| `K=` 关键词 | 中 | 高 | 常规检索（默认） |
+| `T=` 题名 | 最高 | 低 | 精准匹配、引用确认 |
 | `A=` 作者 | 高 | 低 | 追踪特定研究者 |
 | `O=` 机构 | 中 | 中 | 了解机构研究布局 |
 | `P=` 出版物 | 高 | 中 | 限定高质量期刊 |
-
-**字段分级检索流程 / Progressive Field Strategy:**
-
-```
-默认（平衡策略）：
-  第1轮：K=检索（关键词字段，平衡精度和召回）
-    ├─ 结果 ≥ 10 → 完成 ✅
-    └─ 结果 < 10 → 第2轮
-    
-  第2轮：T=检索（放宽到题名，提高召回）
-    ├─ 结果 ≥ 5 → 合并去重，展示 ✅
-    └─ 结果 < 5 → 第3轮
-    
-  第3轮：U=检索（全部字段，最大召回）
-    → 合并去重（U= 结果可能噪声大，需标注"全字段检索结果"）
-
-宽检索（综述/查全）：
-  同时用 K= + U= 两路并行，取并集去重
-
-窄检索（精准/引用）：
-  优先 T= 精确匹配，K= 辅助补充
-```
 
 ### 结果展示规范 / Result Display Standards
 
@@ -1067,4 +990,3 @@ Body: {
 | v3.4 | 2026-06 | 文献入口统一，跨技能联动更顺畅 |
 | v3.5 | 2026-06 | 技能调用可溯源，方便了解各渠道使用情况 |
 | v3.6 | 2026-06 | 版本日志优化，展示更简洁 |
-| v3.7 | 2026-07 | 分词匹配优化：4层关键词智能扩展v2（内置术语映射表+中英互译+上下位词）、字段分级检索策略（K→T→U渐进式）、默认检索字段由U=改为K=（对标知网/WoS标准）、NL示例更新（缩写扩展+中英混合）、字段选择矩阵新增分级流程 |
