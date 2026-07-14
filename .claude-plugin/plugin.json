@@ -1,7 +1,7 @@
 {
   "name": "global-biblio-base",
   "description": "全球12亿文献知识库（8000万中文期刊可下载）——AI对话检索、全文下载与来源核验。SmartLib 核心引流技能。",
-  "version": "3.6.1",
+  "version": "3.6.2",
   "author": {
     "name": "SmartLib"
   },
