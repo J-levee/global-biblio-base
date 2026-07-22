@@ -2,13 +2,13 @@
 slug: global-biblio-base
 name: global-biblio-base
 displayName: 全球12亿文献知识库（8千万中文期刊可下载）
-version: 3.9.1
+version: 3.9.2
 description: |
   全球12亿文献知识库（8千万中文期刊可下载）——覆盖8000万篇授权中文期刊全文+12.28亿条全球文献元数据（含期刊7.19亿、专利2.15亿、会议论文7155万、学位论文2473万、标准268万等）。
   内置三级检索策略（宽检索高查全/窄检索高查准/平衡策略），支持关键词检索、文献详情查看、全文下载（中文直接下载+外文十级渠道自动探测+OA免费下载）、迭代优化检索、引文追溯、分类号检索、结果质量评估。
   ✨ 亮点：每篇文献提供原始数据库来源链接（覆盖300+数据库，如Scopus/WoS/EI/PubMed等，覆盖率100%，平均4.75个链接/篇），可直接跳转验证文献真实性。
   💎 OA文献下载：OA文献（Gold/Hybrid/Bronze/Green OA）通过十级渠道免费获取PDF，不消耗SmartLib配额。
-  当前为试用版：首次使用自动注册开通，免费 100 次检索 / 月 + 10 次全文下载 / 月，全程对话驱动，无需付费或人工申请。付费套餐（体验卡 / 个人版月 / 专业版月 / 单篇下载 / 下载包）现已开放，价格与额度详见本技能 `references/account.md`（smartlib-account），或对话中说「我要升级」。企业 / 机构定制请联系 vipsmart@vipslib.com。
+  当前为试用版：首次使用自动注册开通，免费 100 次检索 / 月 + 10 次全文下载 / 月，全程对话驱动，无需付费或人工申请。付费套餐（体验卡 / 个人版月 / 专业版月 / 单篇下载 / 下载包）现已开放，价格与额度见下方「💰 套餐与额度」章节；配额不足时会自动弹出套餐选择，也可主动说「升级 / 充值 / 购买」唤起。企业 / 机构定制请联系 vipsmart@vipslib.com。
   适用于用户需要查找中外文学术论文、期刊文献、学位论文、专利、标准等场景。
   当用户表达"查论文""找文献""检索学术""搜索期刊""查专利""找标准""找论文""搜文献""学术检索""文献调研""文献综述""下文献""下论文""下载论文""论文下载""搜论文""查SCI""查EI""英文论文""中文论文""论文搜索""文献搜索""学术搜索""找参考文献""写毕业论文""开题报告文献""课题查新""论文查新""文献调研工具""考研文献""帮我找论文""论文在哪找""怎么查文献"等意图时触发。
   也适用于用户提到具体学术主题并希望获取相关论文的场景，如"帮我找一些关于XX的论文""XX领域有哪些研究""帮我写文献综述""引用几篇文献支撑论点"。
@@ -16,7 +16,7 @@ description: |
   若检测到 API 凭证未配置，自动通过 smartlib-gateway 注册开通（免费 100 次/月），全程对话驱动无需人工申请。
   / Global 1.2B literature knowledge base (80M Chinese journal articles downloadable).
   Three-tier search strategy (broad/high-recall, narrow/high-precision, balanced), keyword search, detail view, full-text download, iterative refinement, citation tracing, classification-based search, result quality assessment.
-  Free trial: auto-registration (100 searches + 10 full-text downloads per month), quota consumed per API call. Paid plans (trial card / personal month / pro month / single download / download pack) now available — see `references/account.md` (smartlib-account) or say "我要升级" (upgrade). For institutional/enterprise plans, contact vipsmart@vipslib.com.
+  Free trial: auto-registration (100 searches + 10 full-text downloads per month), quota consumed per API call. Paid plans (trial card / personal month / pro month / single download / download pack) now available — see "💰 Plans & Quota" section below; package picker auto-shows when quota is low, or say "升级 / 充值" to open it. For institutional/enterprise plans, contact vipsmart@vipslib.com.
   Triggers on Chinese/English intents like "find papers", "search literature", "查论文", "找文献", "学术检索", "write literature review", "find supporting citations".
   Auto-detects missing API credentials and auto-registers via smartlib-gateway (100 free/month).
   Production URL: read from config.json → SMARTLIB_GATEWAY_URL (SmartLib Gateway Production).
@@ -95,7 +95,7 @@ agent_created: true
   
   total_remain > 20 → 静默进入检索
   total_remain 5-20 → 尾部轻提示: "📊 本月剩余 {n} 次"
-  total_remain 1-5  → 警告: "⚠️ 接近用尽（剩余 {n} 次），如需更高额度，说「我要升级」查看套餐"
+  total_remain 1-5  → 警告: "⚠️ 接近用尽（剩余 {n} 次），已为你列出可用套餐（见下方💰章节），需要更高额度随时说「升级」"
   total_remain 0    → 配额耗尽处理（见配额耗尽章节）
 
   额外检查:
@@ -155,7 +155,7 @@ agent_created: true
    Body: {"email": "<SMARTLIB_EMAIL>", "skill_source": "global-biblio-base"}
 
    返回 200 → 获取 consume_token，继续
-   返回 429 → 配额已用完，终止后续调用，提示说「我要升级」查看套餐
+   返回 429 → 配额已用完，终止后续调用，按 §配额耗尽处理 自动弹出套餐选择
 
 ② POST <SMARTLIB_GATEWAY_URL>/search
    Headers: {"Authorization": "Bearer <SMARTLIB_GATEWAY_SECRET>"}
@@ -211,32 +211,83 @@ agent_created: true
 ## 💰 套餐与额度 / Plans & Quota
 
 - 计费与升级由 SmartLib **统一钱包**管理，所有文献检索技能**统一定价、配额共享**。
-- 完整套餐价格、额度、注册与升级流程，见本技能 `references/account.md`（smartlib-account）。
-- 配额不足或想升级时，在对话中说「我要升级」即可，无需离开对话框。
+- **配额不足时自动弹套餐**：检索或下载配额接近用尽 / 已耗尽时，技能直接在对话中弹出下方套餐选择卡片，无需用户说任何口令；用户也可主动说「升级 / 充值 / 购买 / 我要升级」唤起同一卡片。
+- 企业 / 机构定制（API 接入、私有化部署）请联系 vipsmart@vipslib.com。
+
+### 当前套餐（与云端 v3.9.1 同步）
+
+| 套餐 | plan key | 价格 | 检索次数 | 下载次数 | 有效期 | 限购 | 适用 |
+|------|----------|------|---------|---------|--------|------|------|
+| 体验卡 | `trial_card` | ¥9.9 | 1000 | 20 | 7天 | 每用户1次 | 尝鲜/临时 |
+| 个人版月 | `personal_month` | ¥39 | 1000 | 50 | 30天 | — | 个人常规 |
+| 专业版月 | `pro_month` | ¥99 | 2000 | 200 | 30天 | — | 重度/小团队 |
+| 单篇下载 | `single_download` | ¥2.5 | 0 | 1 | 不限 | — | 只差几篇下载 |
+| 下载包 | `download_pack` | ¥20 | 0 | 10 | 30天 | — | 批量下载 |
+| 企业/机构 | `enterprise` | 暂停 | — | — | — | — | 联系我们 |
+
+> 下载耗尽时优先推荐「单篇下载 / 下载包」；检索耗尽时优先推荐「体验卡 / 个人版月 / 专业版月」。
+
+### 支付流程（对话内完成，用户回复数字即可）
+
+```
+检测到配额信号（/quota 返回 quota_low / quota_exhausted，或 /consume 返回 429，或 download_remain==0）
+   ↓
+① 渲染套餐卡片（数字①②③④⑤标注，如上表），并提示"回复数字选择，扫码即付"
+   用户回复数字 → 映射 plan key（如 "3" → pro_month）
+   ↓
+② 创建订单:
+   POST {SMARTLIB_GATEWAY_URL}/api/pay/create
+   Headers: {"Authorization": "Bearer {SMARTLIB_GATEWAY_SECRET}"}
+   Body: {"plan": "<plan_key>", "email": "<已注册用户邮箱>"}
+   ⚠️ email 必须是当前已注册用户邮箱（来自注册/配额上下文），严禁使用 config 里的 SMARTLIB_EMAIL（其值为 null）。
+   返回: {"code_url", "out_trade_no", "amount", "plan", "quota"}
+   ↓
+③ 生成微信支付二维码 HTML（用 qrcode.js 渲染 code_url；页面含套餐名/金额/配额/二维码/订单号；禁止显示用户邮箱）
+   ↓
+④ 轮询支付状态:
+   GET {SMARTLIB_GATEWAY_URL}/api/pay/status?out_trade_no=<out_trade_no>
+   （3s 轮询，最多 20 次≈60s；超时提示重新发起）
+   支付成功返回 {"status":"paid","auto_recharged":true,...} → 对话通知"✅ 支付成功，已到账 N 次" + 自动重试上次中断的检索
+```
+
+### 安全机制
+- `out_trade_no` UNIQUE 防重复充值；二维码 5 分钟有效
+- `/api/pay/status` 为公开端点（无需 Bearer），可直接轮询
+- `SMARTLIB_GATEWAY_SECRET` 仅后端调用，不在对话中输出
+- 生成的支付页面**禁止显示用户邮箱**
 
 ---
 
 ## 🔒 配额耗尽处理 / Quota Exhaustion
 
-配额耗尽后，**暂停新的检索请求**，不再展示任何部分结果。
+配额耗尽后，**暂停新的检索请求**，不再展示任何部分结果，并**自动弹出套餐选择卡片**（见上方💰章节），不再要求用户说「我要升级」。
 
 | 状态 | 行为 |
 |------|------|
 | **配额充足** (>0) | 正常执行检索，完整展示所有结果（含详情查看、全文下载、智能排序） |
-| **配额耗尽** (=0) | Gateway 返回 429，**拒绝服务**，提示说「我要升级」查看套餐（企业 / 机构定制仍联系我们） |
+| **配额偏低** (≤10 且无付费余额) | 尾部轻提示 + 自动弹出套餐卡片（软引导） |
+| **配额耗尽** (=0) | Gateway 返回 429，拒绝服务，**自动弹出套餐卡片**（硬引导）；企业 / 机构定制仍联系我们 |
 
-配额耗尽后的提示格式：
+配额耗尽时的引导格式：
 
 ```
-⚠️ 您的 SmartLib 检索配额已用尽。
+⚠️ 您的 SmartLib 配额已用尽，已为您列出可用套餐：
 
-如需更高额度，请在对话中说「我要升级」查看套餐；企业 / 机构批量定制、API 接入或私有化部署请联系我们：
+① 体验卡 ¥9.9 — 1000 检索 + 20 下载 / 7天
+② 个人版月 ¥39 — 1000 检索 + 50 下载 / 30天
+③ 专业版月 ¥99 — 2000 检索 + 200 下载 / 30天
+④ 单篇下载 ¥2.5 — 1 次下载
+⑤ 下载包 ¥20 — 10 次下载 / 30天
+
+回复数字选择，或说「升级 / 充值」重新唤起。
+企业 / 机构批量定制、API 接入或私有化部署请联系：
 📧 vipsmart@vipslib.com  ☎️ 023-63016015  🌐 https://www.vipslib.com/
 ```
 
 **重要规则**：
 - 配额耗尽后，所有检索请求一律拒绝，不展示任何结果
-- 如需更高额度，说「我要升级」查看套餐；企业 / 机构定制仍联系我们
+- 不再要求用户说「我要升级」——配额信号会自动唤起套餐卡片
+- 企业 / 机构定制仍联系我们
 
 
 ## 输出规范 / Output Standards
@@ -248,7 +299,7 @@ agent_created: true
 ```
 或接近耗尽时：
 ```
-⚠️ 剩余 3 次 (共 100 次/月)，如需更高额度，说「我要升级」查看套餐
+⚠️ 剩余 3 次 (共 100 次/月)，已为你列出可用套餐（回复数字即可购买，或说「升级」唤起）
 ```
 
 ```
@@ -942,7 +993,7 @@ Body: {
 | **全文下载失败怎么办？** | 仅中文期刊支持全文下载。下载 URL 约 10 分钟有效，过期需重新调用。英文文献自动走多渠道下载策略获取 OA 版本。 |
 | **Token 多久过期？** | Access Token 30 秒，Refresh Token 2 小时。系统自动管理刷新，用户无感知。 |
 | **英文文献能不能下全文？** | 本技能集成十级多渠道下载策略（ArXiv → Unpaywall → CORE → OpenAlex 等），Gold/Green/Hybrid OA 论文成功率 >85%。付费墙内论文无法获取。 |
-| **配额耗尽后还能用吗？** | 不能。试用额度耗尽后 Gateway 返回 429 拒绝所有检索请求；如需更高额度，请在对话中说「我要升级」查看套餐（企业 / 机构定制联系 vipsmart@vipslib.com）。 |
+| **配额耗尽后还能用吗？** | 不能。试用额度耗尽后 Gateway 返回 429 拒绝所有检索请求，并自动弹出套餐选择；如需更高额度，回复套餐数字或说「升级 / 充值」即可（企业 / 机构定制联系 vipsmart@vipslib.com）。 |
 
 ---
 
@@ -997,6 +1048,7 @@ Body: {
 | v3.8.0 | 2026-07 | 额度模型更新（v51）：暂停 basic/pro/enterprise 付费套餐销售，改为免费试用（100 次检索 + 10 次下载 / 月）+ 联系我们获取更高额度；描述与正文统一移除充值入口，付费引导改为联系方式 |
 | v3.9.0 | 2026-07 | 恢复付费套餐：新增体验卡 / 个人版月 / 专业版月 / 单篇下载 / 下载包多档选择；计费与升级统一由 references/account.md（smartlib-account）管理，所有文献检索技能统一定价、配额共享 |
 | v3.9.1 | 2026-07-19 | /quota 返回字段补充下载额度（download_quota_free / download_reset_at / download_paid_remain / download_remain），与 v52.1 统一钱包对齐 |
+| v3.9.2 | 2026-07-22 | 配额不足时自动弹出套餐选择与微信支付，无需再说「我要升级」；补充完整套餐映射表与支付流程（创建订单/二维码/轮询到账），购买使用已注册用户邮箱 |
 
 ---
 
@@ -1012,4 +1064,4 @@ Body: {
 - ☎️ 电话：023-63016015
 - 🌐 官网：https://www.vipslib.com/
 
-个人用户的套餐与升级，请在对话中说「我要升级」，或参见本技能 `references/account.md`（smartlib-account）。
+个人用户的套餐与升级：配额不足时会自动弹出套餐选择，也可主动说「升级 / 充值 / 购买」唤起（见上方💰章节）。
