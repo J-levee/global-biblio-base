@@ -2,7 +2,10 @@
 slug: global-biblio-base
 name: global-biblio-base
 displayName: 全球12亿文献知识库（8千万中文期刊可下载）
-version: 3.10.2
+display_name: 全球12亿文献知识库（8千万中文期刊可下载）
+display_name_en: Global 1.2B Literature Knowledge Base (80M CN Journals)
+version: 3.10.3
+author: 维普智图
 description: |
   全球12亿文献知识库（8千万中文期刊可下载）——通过 SmartLib 开放平台 API 提供中外文学术文献检索与下载能力，覆盖 8000 万篇授权中文期刊全文 + 12.28 亿条全球文献元数据（期刊 7.19 亿 / 专利 2.15 亿 / 会议 7155 万 / 学位论文 2473 万 / 标准 268 万）。
 
@@ -13,6 +16,8 @@ description: |
   触发：用户表达"查论文""找文献""检索学术""搜期刊""查专利""找标准""下论文""写文献综述""找参考文献""查 SCI/EI"等意图时启用；也适用"帮我找关于 XX 的论文""写文献综述""找几篇引用支撑论点"。英文："find papers" "search literature" "write literature review" "find supporting citations"。
 
   调用前必须先用 /consume 获取 consume_token，再凭 token 调 /search（每次计费接口调用都需一次 /consume）。
+description_zh: 通过 SmartLib 开放平台 API 提供中外文学术文献检索与下载，覆盖 8000 万篇中文期刊全文 + 12.28 亿条全球文献元数据（期刊/专利/会议/学位论文/标准）。支持中英文关键词检索、文献详情、中文期刊 PDF 全文下载、外文 OA 文献免费多渠道下载、智能关键词扩展与核心期刊优先排序。首次使用自动注册，免费 100 次检索 + 10 次下载/月，配额耗尽支持支付宝扫码充值。
+description_en: Search and download Chinese and foreign academic literature via the SmartLib Open Platform API, covering 80 million licensed Chinese journal full texts and 1.228 billion global literature metadata records (journals, patents, conferences, theses, standards). Supports bilingual keyword search, literature details, Chinese journal PDF full-text download, free multi-channel download of foreign OA papers, smart keyword expansion, and core-journal-first ranking. Auto-registers with 100 free searches + 10 downloads/month; Alipay QR recharge when quota runs out.
 agent_created: true
 ---
 
@@ -59,26 +64,35 @@ agent_created: true
 检查 SMARTLIB_EMAIL 是否已配置
   ├── 已配置 → 进入 Step B (配额检查)
   │
-  └── 未配置 → 自动注册流程:
+        └── 未配置 → 验证码注册流程:
         ├── ① 展示检索计划 + 询问邮箱（一句话）:
         │      "📋 我将用中英文关键词检索... 首次使用需绑定邮箱（免费 100 次/月，仅用于配额管理），请输入邮箱即可开始:"
         │      用户输入 → 写入 config.json
         │
-        ├── ② 调智能网关注册（无需验证码，极速注册）:
-        │     POST {SMARTLIB_GATEWAY_URL}/register
-        │     Headers: {"Authorization": "Bearer {SMARTLIB_GATEWAY_SECRET}"}
-        │     Body: {"email": "{用户邮箱}"}
+        ├── ② 发送验证码:
+        │     POST {SMARTLIB_GATEWAY_URL}/register/send-code
+        │     Body: {"email": "{用户邮箱}"}   ← 此接口无需鉴权头
         │
-        ├── 成功 (201/200) → Gateway 返回配额信息
-        │     提示: "✅ 注册成功！本月免费 100 次，可立即使用。确认邮件已发送（邮箱验证仅充值时需要，现在不验证也能用）。"
-        │     追加引导: "请告诉我您想检索什么主题，现在就可以开始——"
-        │     → 继续 Step B 配额检查 → 检索
+        │     返回 code_sent → 请用户查收 6 位数字验证码（15 分钟内有效，
+        │       未收到提示检查垃圾邮件箱），收到后请用户把验证码发回来
+        │     返回 already_registered → 该邮箱已注册，跳过 ③④ 直接进 Step B
+        │     返回 429 → 发送过于频繁/IP 限流，按 retry_after_seconds 提示稍后再试
         │
-        └── 失败 → 提示原因 (服务暂不可用 / 网络错误等) → 终止
+        ├── ③ 提交验证码完成注册:
+        │     POST {SMARTLIB_GATEWAY_URL}/register/verify
+        │     Body: {"email": "{用户邮箱}", "code": "{6位数字验证码}"}
+        │
+        │     返回 registered → 注册+验证一步完成，提示:
+        │       "✅ 注册成功！本月免费 100 次检索 + 10 次下载，可立即使用。"
+        │     返回 verify_failed → 验证码错误或已过期 → 回到 ② 重发
+        │     返回 403 disposable_email → 临时邮箱不可用，请用户换正式邮箱
+        │
+        └── ④ 继续 Step B 配额检查 → 检索
 ```
 
-> **注意**：注册无需验证码，极速完成。**注册后即可立即使用全部功能**，确认邮件为可选项（仅充值时需验证邮箱；验证码 15 分钟内有效，过期可重发）。
-> 
+> **注意**：注册需邮箱验证码（6 位数字，15 分钟有效）。**注册即完成邮箱验证**，后续调用不再弹验证。
+> **适用范围**：验证码仅针对**新注册用户**；存量老用户无需重新验证，正常使用不受任何影响。
+> **长期套餐用户**（机构/年包客户，由客服开通权益）：首次使用同样走上述验证码流程；完成验证后权益自动激活。若调用返回 403 `email_not_verified`，按 ②③ 完成验证即可，无需联系客服。
 
 ### Step B：配额检查/ Quota Check
 
@@ -91,10 +105,17 @@ agent_created: true
   （完整返回: user_id, email, plan, trial_total, trial_used, trial_remain, paid_total, paid_used, paid_remain, paid_expires_at, total_remain, email_verified, download_quota_free, download_reset_at, download_paid_remain, download_remain）
   
   如果返回 404 "not_registered" → 用户可能已被重置/删除
-    → 提示: "检测到您的账户需要重新绑定，正在自动重新注册..."
-    → 跳回 Step A ②（调 /register 重新注册，使用同一邮箱）
+    → 提示: "检测到您的账户需要重新绑定，正在重新注册..."
+    → 跳回 Step A ②（验证码注册流程，使用同一邮箱）
     → 注册成功后继续配额检查
-  
+
+  ⚠️ 长期套餐用户判读: /quota 返回 plan=trial、paid_total=0 **不代表权益未生效**。
+     长期套餐（机构/年包）额度由网关权益层独立管理；若响应含 longterm 字段，以该字段为准。
+     判据以实际调用为准: 检索成功=权益生效; 返回 403 email_not_verified=需完成邮箱验证
+     （走 Step A ②③）; 返回 429 rate_limited=触发周期限流（响应含 reset_at，勿重试等重置）;
+     返回 403 quota_exhausted=总额度用尽需续期。
+     请勿仅凭 /quota 的 trial 字段向用户断言"套餐不存在/未开通"，应以实际调用结果说明。
+
   total_remain > 20 → 静默进入检索
   total_remain 5-20 → 尾部轻提示: "📊 本月剩余 {n} 次"
   total_remain 1-5  → 警告: "⚠️ 接近用尽（剩余 {n} 次），已为你列出可用套餐（见下方💰章节），需要更高额度随时说「升级」"
@@ -225,7 +246,7 @@ agent_created: true
 | 专业版月 | `pro_month` | ¥99 | 2000 | 200 | 30天 | — | 重度/小团队 |
 | 单篇下载 | `single_download` | ¥2.5 | 0 | 1 | 不限 | — | 只差几篇下载 |
 | 下载包 | `download_pack` | ¥20 | 0 | 10 | 30天 | — | 批量下载 |
-| 企业/机构 | `enterprise` | 暂停 | — | — | — | — | 联系我们 |
+| 企业/机构 | `enterprise` | 联系我们 | 自定义 | 自定义 | 议价 | — | >2000 次或团队出口 |
 
 > 下载耗尽时优先推荐「单篇下载 / 下载包」；检索耗尽时优先推荐「体验卡 / 个人版月 / 专业版月」。
 
@@ -993,7 +1014,10 @@ Body: {
 | 状态码 | 含义 | 具体处理步骤 |
 |------|------|------|
 | **401** | Token 无效或过期 | Gateway 自动管理 Token 刷新, 无需处理。若持续 401，请检查 consume_token 是否有效 |
+| **403 email_not_verified** | 邮箱未验证（长期套餐用户权益激活前置） | 走 Step A ②③ 验证码流程完成验证后重试，权益自动激活；**无需联系客服** |
+| **403 quota_exhausted** | 总额度用尽（长期套餐三年/多年总额度扣完） | 提示联系客服续期：vipsmart@vipslib.com / 023-63016015 |
 | **403** | 权限不足 | 提示"当前凭证无此接口权限，请确认 API 套餐是否已开通此接口" |
+| **429 rate_limited** | 触发周期限流（长期套餐用户周/月窗口用尽） | **不要重试**。向用户展示响应中的 `reset_at` 恢复时间，等窗口重置后自动恢复 |
 | **429** | 请求频率超限 | 等待 5 秒后自动重试 |
 | **499** | 参数错误 | 检查 Rule 语法（运算符大写、有空格）、FilterRule 字段代码、PageSize 范围 |
 | **502（alipay_error / 支付宝通道繁忙）** | 支付宝支付通道暂忙（订单未生成） | **不视为服务端故障、不要自动重试 3 次**（重试会加重节流）。按「半成功态」话术告知用户稍后重试；响应**不含** `out_trade_no`，切勿编造 |
@@ -1063,6 +1087,7 @@ Body: {
 | v3.10.0 | 2026-08-29 | 支付渠道切换为支付宝：对话内支付改用 `/api/pay/alipay/create` 生成支付宝付款码、轮询 `/api/pay/alipay/status`；后端双通道并存，老用户（未更新技能）支付通道不受影响 |
 | v3.10.1 | 2026-08-30 | 付款页规范化：新增 `references/pay_page_template.html` 标准付款页样例，对话中生成付款 HTML 必须严格按样例输出（仅替换占位符），统一支付宝蓝风格；修正付款码有效期文案为 **30 分钟**（对齐网关 `timeout_express=30m`，原先错误写成 5 分钟）；轮询策略与 30 分钟有效期对齐；文档事实一致性小修（套餐表标注与网关当前版本同步、Access/Refresh Token 与下载 URL 有效期标注"以 API/下游返回为准"、补充邮箱验证码 15 分钟有效）；文档全面清理（移除中英双语对照、只保留中文；版本历史精简为关键里程碑） |
 | v3.10.2 | 2026-08-30 | 安全整改（云顶实验室）：常驻通知改为「系统通知」引用展示、不引导点击；付款页模板移除远程 JS/CDN（二维码统一 base64 内嵌）与自动状态轮询（状态改由 AI 对话确认）；支付下单前向用户披露邮箱用途 |
+| v3.10.3 | 2026-10-12 | 注册流程升级为**邮箱验证码制**：/register/send-code 发码（6 位数字 15 分钟有效）→ /register/verify 提交，注册即验证一步完成；新增长期套餐用户说明（/quota 显示 trial 不代表权益未生效、403 email_not_verified 自助验证引导）与错误码表扩充（429 rate_limited 含 reset_at、403 quota_exhausted） |
 ---
 
 ## 常驻通知转述
