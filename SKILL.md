@@ -4,7 +4,7 @@ name: global-biblio-base
 displayName: 全球12亿文献知识库（8千万中文期刊可下载）
 display_name: 全球12亿文献知识库（8千万中文期刊可下载）
 display_name_en: Global 1.2B Literature Knowledge Base (80M CN Journals)
-version: 3.10.7
+version: 3.10.10
 author: 维普智图
 description: |
   全球12亿文献知识库（8千万中文期刊可下载）——通过 SmartLib 开放平台 API 提供中外文学术文献检索与下载能力，覆盖 8000 万篇授权中文期刊全文 + 12.28 亿条全球文献元数据（期刊 7.19 亿 / 专利 2.15 亿 / 会议 7155 万 / 学位论文 2473 万 / 标准 268 万）。
@@ -19,6 +19,9 @@ description: |
 description_zh: 通过 SmartLib 开放平台 API 提供中外文学术文献检索与下载，覆盖 8000 万篇中文期刊全文 + 12.28 亿条全球文献元数据（期刊/专利/会议/学位论文/标准）。支持中英文关键词检索、文献详情、中文期刊 PDF 全文下载、外文 OA 文献免费多渠道下载、智能关键词扩展与核心期刊优先排序。首次使用自动注册，免费 100 次检索 + 10 次下载/月，配额耗尽支持支付宝扫码充值。
 description_en: Search and download Chinese and foreign academic literature via the SmartLib Open Platform API, covering 80 million licensed Chinese journal full texts and 1.228 billion global literature metadata records (journals, patents, conferences, theses, standards). Supports bilingual keyword search, literature details, Chinese journal PDF full-text download, free multi-channel download of foreign OA papers, smart keyword expansion, and core-journal-first ranking. Auto-registers with 100 free searches + 10 downloads/month; Alipay QR recharge when quota runs out.
 agent_created: true
+recommends:
+  - keji-skill-showcase
+  - owlwrite-paper
 ---
 
 ## 🤖 AI 执行摘要（先读这段）
@@ -113,7 +116,7 @@ agent_created: true
      长期套餐（机构/年包）额度由网关权益层独立管理；若响应含 longterm 字段，以该字段为准。
      判据以实际调用为准: 检索成功=权益生效; 返回 403 email_not_verified=需完成邮箱验证
      （走 Step A ②③）; 返回 429 rate_limited=触发周期限流（响应含 reset_at，勿重试等重置）;
-     返回 403 quota_exhausted=总额度用尽需续期。
+     返回 429 且 body 中 status=quota_exhausted=总额度用尽需续期（**注意是 429，不是 403**）。
      请勿仅凭 /quota 的 trial 字段向用户断言"套餐不存在/未开通"，应以实际调用结果说明。
 
   total_remain > 20 → 静默进入检索
@@ -175,7 +178,7 @@ agent_created: true
 ```
 ① POST <SMARTLIB_GATEWAY_URL>/consume
    Headers: {"Authorization": "Bearer <SMARTLIB_GATEWAY_SECRET>"}
-   Body: {"email": "<SMARTLIB_EMAIL>", "skill_source": "global-biblio-base"}
+   Body: {"email": "<SMARTLIB_EMAIL>", "skill_source": "global-biblio-base@3.10.9"}
 
    返回 200 → 获取 consume_token，继续
    返回 429 → 配额已用完，终止后续调用，按 §配额耗尽处理 自动弹出套餐选择
@@ -185,7 +188,7 @@ agent_created: true
    Body: {
        "email": "<SMARTLIB_EMAIL>",
        "consume_token": "<上一步返回的token>",
-       "skill_source": "global-biblio-base",
+       "skill_source": "global-biblio-base@3.10.9",
        "api_path": "/openapi/t/data0012/doccenter/Articlesearch",
        "api_body": {<检索请求体>}
    }
@@ -205,8 +208,8 @@ agent_created: true
 >
 > **调用流程**
 > ```
-> 1. POST /consume {"email":"...", "skill_source":"global-biblio-base"} → 返回 consume_token
-> 2. POST /search {"email":"...", "consume_token":"...", "skill_source":"global-biblio-base", "endpoint":"/search/cn", "rule":"..."}
+> 1. POST /consume {"email":"...", "skill_source":"global-biblio-base@3.10.9"} → 返回 consume_token
+> 2. POST /search {"email":"...", "consume_token":"...", "skill_source":"global-biblio-base@3.10.9", "api_path":"/openapi/t/data0012/doccenter/Articlesearch", "api_body":{"Rule":"...","PageIndex":1,"PageSize":20}}
 >    → Gateway 验证 token → 代理转发到检索 API → 返回检索结果
 > ```
 >
@@ -216,7 +219,7 @@ agent_created: true
 
 > `/consume` 仅验证配额可用性 + 签发 token，**不预扣配额**。配额在实际调用 SmartLib API 且返回成功后，由 Gateway 自动扣除。
 > **失败的 API 调用不消耗配额**（如参数错误导致 400、网络错误导致 500 等）。
-> `/consume` 返回的 `total_remain, email_verified, plan` 反映的是当前已成功调用的次数，非预扣后的值。
+> `/consume` 返回的 `total_remain` / `email_verified` 反映的是当前已成功调用的次数，非预扣后的值。`/consume` **不返回 `plan`**，需要套餐信息请查 `/quota`。
 
 **不计费的操作**
 
@@ -435,41 +438,33 @@ agent_created: true
 
 Gateway 自动管理 SmartLib 凭证, 你不需要 APPID/APPSECRET。用户的 EMAIL 在首次注册后自动写入。运行前先读取 config.json 获取网关地址和密钥。
 
-## Token 管理/ Token Management
+## 调用模式/ Request Mode
 
 SmartLib 的 OAuth Token 由 Gateway 全权管理。你无需获取或缓存 Token。
 
-Gateway 支持两种检索调用模式：
+**网关对本技能只支持一种写法：全代理模式。5 个接口一律 `POST /search` + `api_path` + `api_body`。**
 
-### 推荐：语义化端点（更简洁）
+> ⚠️ **只用这一套写法，不要套用别处见过的形态**。检索、详情、下载三类请求的参数名本来就不同（检索用 `Rule` / `PageIndex` / `PageSize`，详情与下载用 `Identifier`）。若你从其它渠道见过 `endpoint` / `article_ids` / `article_id` 这类写法，那是**另一种调用形态**，与本技能不通用——混用会直接返回 **400**。下面 §可用接口 中每个接口的示例即为唯一正确写法。
+
+| 接口 | `api_path` | `api_body` 关键字段 |
+|---|---|---|
+| 中文期刊检索 | `/openapi/t/data0012/doccenter/Articlesearch` | `Rule` / `PageIndex` / `PageSize` / `Sort` / `FilterRule` |
+| 中文期刊详情 | `/openapi/t/data0011/doccenter/Articledetail` | `Identifier`（单篇） |
+| 中文期刊下载 | `/openapi/t/data0013/doccenter/GetArticleFile` | `Identifier`（单篇） |
+| 全球文献检索 | `/openapi/t/skrs2/doccenter/Articlesearch` | `Rule` / `PageIndex` / `PageSize` / `Sort` |
+| 全球文献详情 | `/openapi/t/skrs1/doccenter/Articledetail` | `Identifier`（单篇） |
+
+统一请求外壳：
 
 ```
-POST /search
-Headers: {"Authorization": "Bearer <SECRET>"}
+POST {SMARTLIB_GATEWAY_URL}/search
+Headers: {"Authorization": "Bearer <SMARTLIB_GATEWAY_SECRET>"}
 Body: {
   "email": "<SMARTLIB_EMAIL>",
-  "consume_token": "<token>",
-  "skill_source": "global-biblio-base",
-  "endpoint": "/search/cn",     // 或 /search/global, /detail/cn, /detail/global
-  "rule": "K=人工智能",          // 检索表达式
-  "page_index": 1,
-  "page_size": 20,
-  "sort": 1                     // 可选
-}
-```
-
-支持的 endpoint：`/search/cn` `/detail/cn` `/download/cn` `/search/global` `/detail/global`
-
-### 兼容：全代理模式（旧版，仍可用）
-
-```
-POST /search
-Body: {
-  "email": "...",
-  "consume_token": "...",
-  "skill_source": "global-biblio-base",
-  "api_path": "/openapi/t/data0012/doccenter/Articlesearch",
-  "api_body": {"Rule": "...", "PageIndex": 1, "PageSize": 20}
+  "consume_token": "<通过 /consume 获取的 token>",
+  "skill_source": "global-biblio-base@3.10.9",
+  "api_path": "<上表对应 api_path>",
+  "api_body": { ... }
 }
 ```
 
@@ -1013,16 +1008,18 @@ Body: {
 
 | 状态码 | 含义 | 具体处理步骤 |
 |------|------|------|
-| **401** | Token 无效或过期 | Gateway 自动管理 Token 刷新, 无需处理。若持续 401，请检查 consume_token 是否有效 |
+| **401** | `consume_token` 缺失 / 无效 / 过期 / 已用（`error` = `missing_token` 或 `invalid_token`） | **重新 `/consume` 取新 token 后立即重试一次**。这与云端 OAuth Token 无关，Gateway 不负责刷新 consume_token |
 | **403 email_not_verified** | 邮箱未验证（长期套餐用户权益激活前置） | 走 Step A ②③ 验证码流程完成验证后重试，权益自动激活；**无需联系客服** |
-| **403 quota_exhausted** | 总额度用尽（长期套餐三年/多年总额度扣完） | 提示联系客服续期：vipsmart@vipslib.com / 023-63016015 |
-| **403** | 权限不足 | 提示"当前凭证无此接口权限，请确认 API 套餐是否已开通此接口" |
-| **429 rate_limited** | 触发周期限流（长期套餐用户周/月窗口用尽） | **不要重试**。向用户展示响应中的 `reset_at` 恢复时间，等窗口重置后自动恢复 |
-| **429** | 请求频率超限 | 等待 5 秒后自动重试 |
-| **499** | 参数错误 | 检查 Rule 语法（运算符大写、有空格）、FilterRule 字段代码、PageSize 范围 |
+| **429 quota_exhausted** | 总额度用尽（响应 `status=quota_exhausted`） | 提示联系客服续期：vipsmart@vipslib.com / 023-63016015。**注意是 429，不是 403** |
+| **403** | 权限不足（其它 403） | 提示"当前凭证无此接口权限，请确认 API 套餐是否已开通此接口" |
+| **429 rate_limited** | 触发周期限流（长期套餐用户周/月窗口用尽；响应含 `reset_at`） | **不要重试**。向用户展示 `reset_at` 恢复时间，等窗口重置后自动恢复 |
+| **429（无 `status` / 普通限流）** | 单账号每分钟请求数超限（响应含 `retry_after_seconds`，**无 `reset_at`**） | 等待 `retry_after_seconds`（默认 60s）后重试一次；不要连续重试 |
+| **400 `invalid_rule`** | 检索式语法硬错误：括号不配平、`AND/OR` 悬空或以运算符开头/结尾、运算符连续（`AND AND`）、`=` 后直接跟运算符、括号内为空 | **不重试**（重试同样失败）。语法校验发生在 token 校验与扣配额**之前**，所以：① **不消耗检索配额**；② 该 token 也未被消费，60 秒内改正表达式后可**复用同一 token**，超时再 `/consume`。按 `message` 里的中文提示改正后重试。合法写法：运算符大写且两侧留空格，如 `(K=人工智能 OR K=机器学习) AND T=深度学习` |
+| **400 其它** | 参数错误（`invalid_filter_rule` / `invalid_page_index` / `invalid_page_size` / `invalid_sort` / `invalid_field_type` / `invalid_body` / `invalid_article_ids` / `invalid_article_id` / `amount_mismatch`） | **不重试**（重试同样失败）。检查 FilterRule 字段代码、PageSize 20~1000 范围、`api_path`/`api_body` 是否为字符串/对象。**注意：网关已做表达式语法校验（v91 起），残缺表达式会直接 400 `invalid_rule`，不再返回 200** |
 | **502（alipay_error / 支付宝通道繁忙）** | 支付宝支付通道暂忙（订单未生成） | **不视为服务端故障、不要自动重试 3 次**（重试会加重节流）。按「半成功态」话术告知用户稍后重试；响应**不含** `out_trade_no`，切勿编造 |
-| **500/503** | 网关服务端错误 | 自动重试 3 次（指数退避 1s→2s→4s）→ 全部失败后提示"SmartLib 服务暂时不可用，通常 5 分钟内恢复" |
-| **网络超时** | 请求无响应 | 自动重试 3 次 → 提示"请检查网络是否可访问 data.smart.vipslib.com" |
+| **502 `upstream_unavailable`** / **504 `upstream_timeout`** | 文献数据源短时不可用（网关侧已自动重试一次仍失败） | **不要连试**。原 token 已被消费，等 30 秒重新 `/consume` 后重试**一次**即可。**不计费**（只有成功返回才扣检索次数）。仍失败则告知用户"数据源短暂繁忙，请稍后再试"，不要换关键词反复试探 |
+| **500 `internal_error`**（或带 `ref` 的 `internal_error`）/ **503** | 网关服务端异常 | 重试 **1** 次（间隔 2s）；仍失败提示"SmartLib 服务暂时不可用，通常 5 分钟内恢复"。**不要连试 3 次**——网关对上游已自带一次重试，客户端再叠加会把偶发抖动放大成雪崩。带 `ref` 时把该 8 位码给用户便于客服定位 |
+| **网络超时** | 请求无响应 | 重试 1 次；仍超时提示"请检查网络是否可访问 data.smart.vipslib.com" |
 | **无结果** | API 返回空列表 | 按「结果数量自适应策略」自动提供扩展建议 |
 | **凭证缺失** | 环境变量未设置 | 自动触发 Pre-flight 注册流程 |
 
@@ -1089,6 +1086,9 @@ Body: {
 | v3.10.2 | 2026-08-30 | 安全整改（云顶实验室）：常驻通知改为「系统通知」引用展示、不引导点击；付款页模板移除远程 JS/CDN（二维码统一 base64 内嵌）与自动状态轮询（状态改由 AI 对话确认）；支付下单前向用户披露邮箱用途 |
 | v3.10.3 | 2026-10-12 | 注册流程升级为**邮箱验证码制**：/register/send-code 发码（6 位数字 15 分钟有效）→ /register/verify 提交，注册即验证一步完成；新增长期套餐用户说明（/quota 显示 trial 不代表权益未生效、403 email_not_verified 自助验证引导）与错误码表扩充（429 rate_limited 含 reset_at、403 quota_exhausted） |
 | v3.10.7 | 2026-10-28 | **修复安装包缺失配置文件导致的运行问题**：恢复 config.json / config.example.json 随包发布，新装用户开箱即用；技能内容与 v3.10.3 一致 |
+| v3.10.10 | 2026-11-09 | **新增配套技能推荐**：与科研技能鉴赏、夜猫子论文工作台关联——查文献遇到"不知道用哪个技能""想接着写论文"时，AI 会顺手告诉你下一步装什么，检索写作一条路走通；本版技能内容与功能无变化 |
+| v3.10.8 | 2026-11-06 | **调用写法统一**：检索、详情、下载三类请求收敛为一套写法，消除"照文档推荐的方式拼参数反而失败"的情况；**错误提示更准确**——参数填写错误 / 配额已用尽 / 请求过于频繁三类情况分别给出对应的处理建议，不再互相混淆（此前用户遇到参数问题会被告知"服务暂时不可用"，容易误判为平台故障）；修正配额检查结果的套餐提示（配额检查接口本身不返回套餐信息，需单独查询账户）；调用时自动带上当前技能版本号，便于我们更快定位问题 |
+| v3.10.9 | 2026-11-07 | **检索式写错时给出准确提示**：括号不配对、AND/OR 漏写检索词、运算符连续等写法错误，会直接告诉你错在哪、怎么改，不再"看起来查到了、结果却对不上"；**这类写法错误不消耗检索次数**，改正后可直接重试。**数据源偶尔卡顿时改为稍等片刻再试一次**，不再自动连试三次——避免把一次小卡顿拖成大面积失败。同时校正了错误提示里"参数校验范围"的旧说法 |
 ---
 
 ## 常驻通知转述
